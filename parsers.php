@@ -54,7 +54,7 @@ class WXR_Parser {
  */
 class WXR_Parser_SimpleXML {
 	function parse( $file ) {
-		$authors = $posts = $categories = $tags = $terms = array();
+		$authors = $posts = $categories = $tags = $terms = $options = array();
 
 		$internal_errors = libxml_use_internal_errors(true);
 
@@ -90,13 +90,6 @@ class WXR_Parser_SimpleXML {
 
 		$base_url = $xml->xpath('/rss/channel/wp:base_site_url');
 		$base_url = (string) trim( $base_url[0] );
-		
-		$base_blog_url = $xml->xpath('/rss/channel/wp:base_blog_url');
-		if ( $base_blog_url ) {
-			$base_blog_url = (string) trim( $base_blog_url[0] );
-		} else {
-			$base_blog_url = $base_url;
-		}
 
 		$namespaces = $xml->getDocNamespaces();
 		if ( ! isset( $namespaces['wp'] ) )
@@ -115,6 +108,15 @@ class WXR_Parser_SimpleXML {
 				'author_display_name' => (string) $a->author_display_name,
 				'author_first_name' => (string) $a->author_first_name,
 				'author_last_name' => (string) $a->author_last_name
+			);
+		}
+
+		// grab options
+		foreach ( $xml->xpath('/rss/channel/wp:options') as $options_arr ) {
+			$meta = $options_arr->children( $namespaces['wp'] );
+			$options[] = array(
+				'name'=>(string) $meta->name,
+				'value'=>(string) $meta->value
 			);
 		}
 
@@ -260,13 +262,13 @@ class WXR_Parser_SimpleXML {
 		}
 
 		return array(
+			'options' => $options,
 			'authors' => $authors,
 			'posts' => $posts,
 			'categories' => $categories,
 			'tags' => $tags,
 			'terms' => $terms,
 			'base_url' => $base_url,
-			'base_blog_url' => $base_blog_url,
 			'version' => $wxr_version
 		);
 	}
@@ -282,7 +284,7 @@ class WXR_Parser_XML {
 		'wp:is_sticky', 'wp:term_id', 'wp:category_nicename', 'wp:category_parent', 'wp:cat_name', 'wp:category_description',
 		'wp:tag_slug', 'wp:tag_name', 'wp:tag_description', 'wp:term_taxonomy', 'wp:term_parent',
 		'wp:term_name', 'wp:term_description', 'wp:author_id', 'wp:author_login', 'wp:author_email', 'wp:author_display_name',
-		'wp:author_first_name', 'wp:author_last_name',
+		'wp:author_first_name', 'wp:author_last_name','wp:options',
 	);
 	var $wp_sub_tags = array(
 		'wp:comment_id', 'wp:comment_author', 'wp:comment_author_email', 'wp:comment_author_url',
@@ -292,7 +294,7 @@ class WXR_Parser_XML {
 
 	function parse( $file ) {
 		$this->wxr_version = $this->in_post = $this->cdata = $this->data = $this->sub_data = $this->in_tag = $this->in_sub_tag = false;
-		$this->authors = $this->posts = $this->term = $this->category = $this->tag = array();
+		$this->authors = $this->posts = $this->term = $this->category = $this->tag = $this->options = array();
 
 		$xml = xml_parser_create( 'UTF-8' );
 		xml_parser_set_option( $xml, XML_OPTION_SKIP_WHITE, 1 );
@@ -314,13 +316,13 @@ class WXR_Parser_XML {
 			return new WP_Error( 'WXR_parse_error', __( 'This does not appear to be a WXR file, missing/invalid WXR version number', 'wordpress-importer' ) );
 
 		return array(
+			'options' => $this->options,
 			'authors' => $this->authors,
 			'posts' => $this->posts,
 			'categories' => $this->category,
 			'tags' => $this->tag,
 			'terms' => $this->term,
 			'base_url' => $this->base_url,
-			'base_blog_url' => $this->base_blog_url,
 			'version' => $this->wxr_version
 		);
 	}
@@ -411,12 +413,6 @@ class WXR_Parser_XML {
 				break;
 			case 'wp:base_site_url':
 				$this->base_url = $this->cdata;
-				if ( ! isset( $this->base_blog_url ) ) {
-					$this->base_blog_url = $this->cdata;
-				}
-				break;
-			case 'wp:base_blog_url':
-				$this->base_blog_url = $this->cdata;
 				break;
 			case 'wp:wxr_version':
 				$this->wxr_version = $this->cdata;
@@ -446,8 +442,7 @@ class WXR_Parser_Regex {
 	var $tags = array();
 	var $terms = array();
 	var $base_url = '';
-	var $base_blog_url = '';
-	
+
 	function __construct() {
 		$this->has_gzip = is_callable( 'gzopen' );
 	}
@@ -476,14 +471,6 @@ class WXR_Parser_Regex {
 					preg_match( '|<wp:base_site_url>(.*?)</wp:base_site_url>|is', $importline, $url );
 					$this->base_url = $url[1];
 					continue;
-				}
-				
-				if ( false !== strpos( $importline, '<wp:base_blog_url>' ) ) {
-					preg_match( '|<wp:base_blog_url>(.*?)</wp:base_blog_url>|is', $importline, $blog_url );
-					$this->base_blog_url = $blog_url[1];
-					continue;
-				} else {
-					$this->base_blog_url = $this->base_url;	
 				}
 
 				if ( false !== strpos( $importline, '<wp:author>' ) ) {
@@ -532,7 +519,6 @@ class WXR_Parser_Regex {
 			'tags' => $this->tags,
 			'terms' => $this->terms,
 			'base_url' => $this->base_url,
-			'base_blog_url' => $this->base_blog_url,
 			'version' => $wxr_version
 		);
 	}
