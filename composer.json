@@ -1,0 +1,7 @@
+{
+  "name":"metabolism/wordpress-advanced-importer",
+  "version": "0.6.4",
+  "type": "wordpress-plugin",
+  "description": "Import posts, pages, comments, custom fields, categories, tags, options and more from a WordPress export file.",
+  "license": "GPL-3.0-or-later"
+}

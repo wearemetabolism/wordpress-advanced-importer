@@ -2,9 +2,9 @@
 /*
 Plugin Name: WordPress Advanced Importer
 Plugin URI: https://wordpress.org/plugins/wordpress-importer/
-Description: Import posts, pages, comments, custom fields, categories, tags and more from a WordPress export file.
-Author: wordpressdotorg
-Author URI: https://wordpress.org/
+Description: Import posts, pages, comments, custom fields, categories, tags and more from a WordPress export file. Forked from Wordpress Importer
+Author: metabolism
+Author URI: https://metabolism.fr/
 Version: 0.6.4
 Text Domain: wordpress-importer
 License: GPL version 2 or later - http://www.gnu.org/licenses/old-licenses/gpl-2.0.html
@@ -642,7 +642,7 @@ if ( class_exists( 'WP_Importer' ) ) {
 				$value = apply_filters('import_options_value', $option['value']);
 				$name = apply_filters('import_options_name', $option['name']);
 
-				update_option($name, maybe_unserialize($value), true);
+				update_option($name, $value, true);
 			}
 		}
 
@@ -653,6 +653,12 @@ if ( class_exists( 'WP_Importer' ) ) {
 		 * @return int|WP_Error
 		 */
 		function filter_value($value) {
+
+			$values = maybe_unserialize($value);
+			$is_array = is_array($values);
+			$values = (array)$values;
+
+			foreach ($values as &$value){
 
 			if( substr($value, 0, 13) == 'attachment://'){
 
@@ -676,8 +682,12 @@ if ( class_exists( 'WP_Importer' ) ) {
 					$value = str_replace('attachment://', '/', $value);
 				}
 			}
+			}
 
-			return $value;
+			if( $is_array )
+				return $values;
+			else
+				return $values[0];
 		}
 
 
