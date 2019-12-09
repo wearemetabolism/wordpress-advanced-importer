@@ -113,6 +113,7 @@ if ( class_exists( 'WP_Importer' ) ) {
 			add_filter( 'http_request_timeout', array( &$this, 'bump_request_timeout' ) );
 			add_filter( 'import_options_value', array( &$this, 'filter_value' ) );
 			add_filter( 'import_post_meta_value', array( &$this, 'filter_value' ) );
+			add_filter( 'http_request_host_is_external', '__return_true');
 
 			$this->import_start( $file );
 
