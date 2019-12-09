@@ -661,28 +661,52 @@ if ( class_exists( 'WP_Importer' ) ) {
 
 			foreach ($values as &$value){
 
-			if( substr($value, 0, 13) == 'attachment://'){
+				if( substr($value, 0, 13) == 'attachment://'){
 
-				if( $this->fetch_attachments ){
+					if( $this->fetch_attachments ){
 
-					$post_id = $this->fetch_attachment( $value );
+						$post_id = $this->fetch_attachment( $value );
 
-					if( is_wp_error($post_id) ){
+						if( is_wp_error($post_id) ){
 
-						printf( __( 'Failed to download &#8220;%s&#8221;: Invalid post type %s', 'wordpress-importer' ),
-							esc_html($value), esc_html($post_id->get_error_message()) );
-						echo '<br />';
+							echo esc_html($post_id->get_error_message()).'<br />';
+						}
+						else{
+
+							$value = $post_id;
+						}
 					}
 					else{
 
-						$value = $post_id;
+						$value = str_replace('attachment://', '/', $value);
 					}
 				}
-				else{
+				elseif( substr($value, 0, 7) == 'post://'){
 
-					$value = str_replace('attachment://', '/', $value);
+					$post = explode('@', str_replace('post://', '', $value));
+
+					$posts = get_posts(array(
+						'name'        => $post[0],
+						'post_type'   => $post[1],
+						'numberposts' => 1
+					));
+
+					if( count($posts) )
+						$value = $posts[0]->ID;
+					else
+						$value = '';
 				}
-			}
+				elseif( substr($value, 0, 7) == 'term://'){
+
+					$term = explode('@', str_replace('term://', '', $value));
+
+					$term = get_term_by('slug', $term[0], $term[1]);
+
+					if( $term )
+						$value = $term->term_id;
+					else
+						$value = '';
+				}
 			}
 
 			if( $is_array )
@@ -1110,7 +1134,7 @@ if ( class_exists( 'WP_Importer' ) ) {
 			// request failed
 			if ( ! $headers ) {
 				@unlink( $upload['file'] );
-				return new WP_Error( 'import_file_error', __('Remote server did not respond', 'wordpress-importer') );
+				return new WP_Error( 'import_file_error', $url.' : '.__('Remote server did not respond', 'wordpress-importer') );
 			}
 
 			$remote_response_code = wp_remote_retrieve_response_code( $remote_response );
@@ -1118,7 +1142,7 @@ if ( class_exists( 'WP_Importer' ) ) {
 			// make sure the fetch was successful
 			if ( $remote_response_code != '200' ) {
 				@unlink( $upload['file'] );
-				return new WP_Error( 'import_file_error', sprintf( __('Remote server returned error response %1$d %2$s', 'wordpress-importer'), esc_html($remote_response_code), get_status_header_desc($remote_response_code) ) );
+				return new WP_Error( 'import_file_error', sprintf( $url.' : '.__('Remote server returned error response %1$d %2$s', 'wordpress-importer'), esc_html($remote_response_code), get_status_header_desc($remote_response_code) ) );
 			}
 
 			clearstatcache();
@@ -1127,18 +1151,18 @@ if ( class_exists( 'WP_Importer' ) ) {
 
 			if ( isset( $headers['content-length'] ) && $filesize != $headers['content-length'] ) {
 				@unlink( $upload['file'] );
-				return new WP_Error( 'import_file_error', __('Remote file is incorrect size', 'wordpress-importer') );
+				return new WP_Error( 'import_file_error', $url.' : '.__('Remote file is incorrect size', 'wordpress-importer') );
 			}
 
 			if ( 0 == $filesize ) {
 				@unlink( $upload['file'] );
-				return new WP_Error( 'import_file_error', __('Zero size file downloaded', 'wordpress-importer') );
+				return new WP_Error( 'import_file_error', $url.' : '.__('Zero size file downloaded', 'wordpress-importer') );
 			}
 
 			$max_size = (int) $this->max_attachment_size();
 			if ( ! empty( $max_size ) && $filesize > $max_size ) {
 				@unlink( $upload['file'] );
-				return new WP_Error( 'import_file_error', sprintf(__('Remote file is too large, limit is %s', 'wordpress-importer'), size_format($max_size) ) );
+				return new WP_Error( 'import_file_error', sprintf($url.' : '.__('Remote file is too large, limit is %s', 'wordpress-importer'), size_format($max_size) ) );
 			}
 
 			// keep track of the old and new urls so we can substitute them later
